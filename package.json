@@ -1,7 +1,7 @@
 {
-  "name": "koishi-plugin-webhook-trigger-action",
-  "description": "监听指定路径上的网络请求，并向指定平台发送信息",
-  "version": "1.2.4",
+  "name": "koishi-plugin-webhook-trigger-action-image",
+  "description": "监听指定路径上的网络请求，并向指定平台发送信息，增加了以图片形式发送消息的功能",
+  "version": "1.2.5",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -9,13 +9,14 @@
     "dist"
   ],
   "contributors": [
-    "Mcayear <mcayear@163.com>"
+    "Mcayear <mcayear@163.com>",
+    "MiaM1ku <hqt1021@gmail.com>"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/Mcayear/koishi-plugin-webhook-trigger-action",
+  "homepage": "https://github.com/MiaM1ku/koishi-plugin-webhook-trigger-action-image",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mcayear/koishi-plugin-webhook-trigger-action.git"
+    "url": "git+https://github.com/MiaM1ku/koishi-plugin-webhook-trigger-action-image.git"
   },
   "scripts": {
     "build": "atsc -b",
@@ -29,14 +30,17 @@
   "peerDependencies": {
     "koishi": "^4.17.12"
   },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.65"
+  },
   "devDependencies": {
     "@koishijs/plugin-adapter-onebot": "^6.0.2",
     "@koishijs/plugin-server": "^3.2.3"
   },
   "koishi": {
     "description": {
-      "en": "Listen for network requests on a specified path and send messages to a designated platform.",
-      "zh": "监听指定路径上的网络请求，并向指定平台发送信息"
+      "en": "Listen for network requests on a specified path and send messages to a designated platform.This version adds the functionality to send messages in image form.",
+      "zh": "监听指定路径上的网络请求，并向指定平台发送信息。此版本增加了以图片形式发送消息的功能。"
     },
     "service": {
       "required": [

@@ -1,6 +1,7 @@
 import { Bot, Context, Schema } from "koishi";
 import type {} from "@koishijs/plugin-server"
 import { OneBot } from "@koishijs/plugin-adapter-onebot";
+import { messageToImgTag } from "./image";
 
 export const name = "webhook-trigger-action";
 export const inject = ["server"];
@@ -20,6 +21,7 @@ export enum WebhookMethodType {
 export interface Webhook {
 	method: WebhookMethodType;
 	headers: { [key: string]: string };
+	image: boolean;
 	response?: responseType[];
 }
 
@@ -35,6 +37,9 @@ export const Config = Schema.dict(
 		headers: Schema.dict(Schema.string())
 			.role("table")
 			.description("检查头 如果填写则需要在请求头中包含"),
+		image: Schema.boolean()
+			.default(false)
+			.description("是否以图片形式发送消息（将文本渲染为图片后发送）"),
 		response: Schema.array(
 			Schema.object({
 				platform: Schema.union([
@@ -70,27 +75,41 @@ export interface varDict {
 	[key: string]: string;
 }
 
-function sendResponseMsg(bot: Bot<any>, platform: string, rep: responseType, dict: varDict) {
+async function sendResponseMsg(bot: Bot<any>, platform: string, rep: responseType, dict: varDict, logger: any, image: boolean) {
 	let msg = rep.msg;
 	for (const key in dict) {
 		msg = msg.replace(new RegExp("\\{" + key + "\\}", "g"), dict[key]);
 	}
+
+	// If image mode is enabled, render the message as a PNG image
+	let finalMsg: string;
+	if (image) {
+		try {
+			finalMsg = await messageToImgTag(msg.replace(/\\n/g, "\n"));
+		} catch (e) {
+			logger.error("图片生成失败，回退到文本模式：" + e);
+			finalMsg = msg.replace(/\\n/g, "\n");
+		}
+	} else {
+		finalMsg = msg;
+	}
+
 	if (rep.private) {
-		rep.seeisonIds.forEach((sessionId) => {
-			bot.sendPrivateMessage(sessionId, msg.replace("\\n", "\n"));
-		});
+		for (const sessionId of rep.seeisonIds) {
+			await bot.sendPrivateMessage(sessionId, finalMsg.replace(/\\n/g, "\n"));
+		}
 		return;
 	}
 	if (platform === "onebot") {
 		const internal: OneBot.Internal = bot.internal;
-		rep.seeisonIds.forEach((sessionId) => {
-			internal.sendGroupMsg(<number>(<unknown>sessionId), msg);
-		});
+		for (const sessionId of rep.seeisonIds) {
+			await internal.sendGroupMsg(<number>(<unknown>sessionId), finalMsg);
+		}
 		return;
 	}
-	rep.seeisonIds.forEach((sessionId) => {
-		bot.sendMessage(sessionId, msg.replace("\\n", "\n"));
-	});
+	for (const sessionId of rep.seeisonIds) {
+		await bot.sendMessage(sessionId, finalMsg.replace(/\\n/g, "\n"));
+	}
 }
 
 export function apply(ctx: Context, config: Config) {
@@ -112,20 +131,20 @@ export function apply(ctx: Context, config: Config) {
 					}
 					next();
 				},
-				(c) => {
+				async (c) => {
 					let body = JSON.parse(JSON.stringify(c.request.query));
 
-					ctx.bots.forEach((bot) => {
+					for (const bot of ctx.bots) {
 						logger.info("get请求 bot.selfId：" + bot.selfId);
-						for (let rep of item.response) {
+						for (let rep of item.response ?? []) {
 							if (bot.platform != rep.platform && bot.selfId != rep.selfId) {
 								// 过滤机器人平台，用户ID
 								continue;
 							}
-							sendResponseMsg(bot, rep.platform, rep, body ? body : {});
+							await sendResponseMsg(bot, rep.platform, rep, body ? body : {}, logger, item.image);
 							return (c.status = 200);
 						}
-					});
+					}
 
 					return (c.status = 405);
 				}
@@ -143,19 +162,21 @@ export function apply(ctx: Context, config: Config) {
 					}
 					next();
 				},
-				(c) => {
+				async (c) => {
 					for (let bot of ctx.bots) {
 						logger.info("post请求 bot.selfId：" + bot.selfId);
-						for (let rep of item.response) {
+						for (let rep of item.response ?? []) {
 							if (bot.platform != rep.platform && bot.selfId != rep.selfId) {
 								// 过滤机器人平台，用户ID
 								continue;
 							}
-							sendResponseMsg(
+							await sendResponseMsg(
 								bot,
 								rep.platform,
 								rep,
-								c.request.body ? c.request.body : {}
+								c.request.body ? c.request.body : {},
+								logger,
+								item.image
 							);
 							return (c.status = 200);
 						}
