@@ -126,22 +126,31 @@ export function apply(ctx: Context, config: Config) {
 					next();
 				},
 				async (c) => {
-					let body = JSON.parse(JSON.stringify(c.request.query));
-
-					for (const bot of ctx.bots) {
-						logger.info("get请求 bot.selfId：" + bot.selfId);
-						for (let rep of item.response ?? []) {
-							if (bot.platform != rep.platform && bot.selfId != rep.selfId) {
-								// 过滤机器人平台，用户ID
-								continue;
+						let body = JSON.parse(JSON.stringify(c.request.query));
+	
+						for (const bot of ctx.bots) {
+							logger.info("get请求 bot.selfId：" + bot.selfId);
+							for (let rep of item.response ?? []) {
+								if (bot.platform !== rep.platform || bot.selfId !== (rep as any).username) {
+									// 过滤机器人平台，用户ID
+									continue;
+								}
+								try {
+									await sendResponseMsg(bot, rep, body ? body : {}, logger, item.image);
+									c.status = 200;
+									c.body = "OK";
+								} catch (e) {
+									logger.error("发送消息失败：" + e);
+									c.status = 500;
+									c.body = "Internal Server Error";
+								}
+								return;
 							}
-							await sendResponseMsg(bot, rep, body ? body : {}, logger, item.image);
-							return (c.status = 200);
 						}
+	
+						c.status = 405;
+						c.body = "Method Not Allowed";
 					}
-
-					return (c.status = 405);
-				}
 			);
 
 		if (item.method === WebhookMethodType.POST)
@@ -157,25 +166,34 @@ export function apply(ctx: Context, config: Config) {
 					next();
 				},
 				async (c) => {
-					for (let bot of ctx.bots) {
-						logger.info("post请求 bot.selfId：" + bot.selfId);
-						for (let rep of item.response ?? []) {
-							if (bot.platform != rep.platform && bot.selfId != rep.selfId) {
-								// 过滤机器人平台，用户ID
-								continue;
+						for (let bot of ctx.bots) {
+							logger.info("post请求 bot.selfId：" + bot.selfId);
+							for (let rep of item.response ?? []) {
+								if (bot.platform !== rep.platform || bot.selfId !== (rep as any).username) {
+									// 过滤机器人平台，用户ID
+									continue;
+								}
+								try {
+									await sendResponseMsg(
+										bot,
+										rep,
+										c.request.body ? c.request.body : {},
+										logger,
+										item.image
+									);
+									c.status = 200;
+									c.body = "OK";
+								} catch (e) {
+									logger.error("发送消息失败：" + e);
+									c.status = 500;
+									c.body = "Internal Server Error";
+								}
+								return;
 							}
-							await sendResponseMsg(
-								bot,
-								rep,
-								c.request.body ? c.request.body : {},
-								logger,
-								item.image
-							);
-							return (c.status = 200);
 						}
+						c.status = 405;
+						c.body = "Method Not Allowed";
 					}
-					return (c.status = 405);
-				}
 			);
 	}
 }

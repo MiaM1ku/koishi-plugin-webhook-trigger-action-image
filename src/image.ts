@@ -17,39 +17,75 @@ async function getCanvas(): Promise<typeof import("@napi-rs/canvas")> {
 }
 
 // ── Font registration ─────────────────────────────────────
-const FONT_FAMILY = "ReportFont";
-let fontRegistered = false;
+const TEXT_FONT_FAMILY = "ReportFont";
+const EMOJI_FONT_FAMILY = "EmojiFont";
+let textFontRegistered = false;
+let emojiFontRegistered = false;
 
-const FONT_CANDIDATES = [
+const TEXT_FONT_CANDIDATES = [
 	"C:/Windows/Fonts/msyh.ttc",
 	"C:/Windows/Fonts/msyhbd.ttc",
 	"C:/Windows/Fonts/simhei.ttf",
 	"/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
 	"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
 	"/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+	"/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf",
+	"/usr/share/fonts/opentype/noto/NotoSansSC-Regular.otf",
 	"/System/Library/Fonts/PingFang.ttc",
+];
+
+const EMOJI_FONT_CANDIDATES = [
+	// Windows
+	"C:/Windows/Fonts/seguiemj.ttf",
+	// Linux - Noto Color Emoji
+	"/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+	"/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf",
+	"/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf",
+	"/usr/share/fonts/truetype/noto/NotoEmoji-Regular.ttf",
+	// macOS
+	"/System/Library/Fonts/Apple Color Emoji.ttc",
 ];
 
 function registerFonts(
 	GlobalFonts: (typeof import("@napi-rs/canvas"))["GlobalFonts"]
 ) {
-	if (fontRegistered) return;
-	for (const fontPath of FONT_CANDIDATES) {
-		try {
-			if (existsSync(fontPath)) {
-				GlobalFonts.registerFromPath(fontPath, FONT_FAMILY);
-				fontRegistered = true;
-				return;
+	// Register text font
+	if (!textFontRegistered) {
+		for (const fontPath of TEXT_FONT_CANDIDATES) {
+			try {
+				if (existsSync(fontPath)) {
+					GlobalFonts.registerFromPath(fontPath, TEXT_FONT_FAMILY);
+					textFontRegistered = true;
+					break;
+				}
+			} catch {
+				continue;
 			}
-		} catch {
-			continue;
+		}
+	}
+
+	// Register emoji font
+	if (!emojiFontRegistered) {
+		for (const fontPath of EMOJI_FONT_CANDIDATES) {
+			try {
+				if (existsSync(fontPath)) {
+					GlobalFonts.registerFromPath(fontPath, EMOJI_FONT_FAMILY);
+					emojiFontRegistered = true;
+					break;
+				}
+			} catch {
+				continue;
+			}
 		}
 	}
 }
 
 function fontStr(size: number): string {
-	const family = fontRegistered ? FONT_FAMILY : "sans-serif";
-	return `${size}px "${family}"`;
+	const families: string[] = [];
+	if (textFontRegistered) families.push(`"${TEXT_FONT_FAMILY}"`);
+	if (emojiFontRegistered) families.push(`"${EMOJI_FONT_FAMILY}"`);
+	families.push("sans-serif");
+	return `${size}px ${families.join(", ")}`;
 }
 
 // ── Image generation ──────────────────────────────────────
@@ -166,13 +202,4 @@ export async function generateReportImage(message: string): Promise<Buffer> {
 	croppedCtx.drawImage(canvas, 0, 0);
 
 	return cropped.toBuffer("image/png");
-}
-
-/**
- * Convert report text to a base64 `<img>` tag suitable for Koishi message elements.
- */
-export async function messageToImgTag(message: string): Promise<string> {
-	const pngBytes = await generateReportImage(message);
-	const b64 = pngBytes.toString("base64");
-	return `<img src="data:image/png;base64,${b64}" />`;
 }
