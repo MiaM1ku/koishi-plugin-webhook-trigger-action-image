@@ -1,7 +1,7 @@
 {
   "name": "koishi-plugin-webhook-trigger-action-image",
   "description": "监听指定路径上的网络请求，并向指定平台发送信息，增加了以图片形式发送消息的功能",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "files": [
@@ -35,7 +35,8 @@
   },
   "devDependencies": {
     "@koishijs/plugin-adapter-onebot": "^6.0.2",
-    "@koishijs/plugin-server": "^3.2.3"
+    "@koishijs/plugin-server": "^3.2.3",
+    "@types/node": "^25.6.0"
   },
   "koishi": {
     "description": {
@@ -51,5 +52,6 @@
       "en",
       "zh"
     ]
-  }
+  },
+  "packageManager": "yarn@4.12.0+sha512.f45ab632439a67f8bc759bf32ead036a1f413287b9042726b7cc4818b7b49e14e9423ba49b18f9e06ea4941c1ad062385b1d8760a8d5091a1a31e5f6219afca8"
 }
