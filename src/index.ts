@@ -1,7 +1,6 @@
-import { Bot, Context, Schema } from "koishi";
+import { Bot, Context, Schema, h } from "koishi";
 import type {} from "@koishijs/plugin-server"
-import { OneBot } from "@koishijs/plugin-adapter-onebot";
-import { messageToImgTag } from "./image";
+import { generateReportImage } from "./image";
 
 export const name = "webhook-trigger-action";
 export const inject = ["server"];
@@ -75,40 +74,35 @@ export interface varDict {
 	[key: string]: string;
 }
 
-async function sendResponseMsg(bot: Bot<any>, platform: string, rep: responseType, dict: varDict, logger: any, image: boolean) {
+async function sendResponseMsg(bot: Bot<any>, rep: responseType, dict: varDict, logger: any, image: boolean) {
 	let msg = rep.msg;
 	for (const key in dict) {
 		msg = msg.replace(new RegExp("\\{" + key + "\\}", "g"), dict[key]);
 	}
 
-	// If image mode is enabled, render the message as a PNG image
-	let finalMsg: string;
+	// Build the final message content
+	let content: h[];
 	if (image) {
 		try {
-			finalMsg = await messageToImgTag(msg.replace(/\\n/g, "\n"));
+			const pngBytes = await generateReportImage(msg.replace(/\\n/g, "\n"));
+			const b64 = pngBytes.toString("base64");
+			content = [h.image(`data:image/png;base64,${b64}`)];
 		} catch (e) {
 			logger.error("图片生成失败，回退到文本模式：" + e);
-			finalMsg = msg.replace(/\\n/g, "\n");
+			content = [h.text(msg.replace(/\\n/g, "\n"))];
 		}
 	} else {
-		finalMsg = msg;
+		content = [h.text(msg.replace(/\\n/g, "\n"))];
 	}
 
 	if (rep.private) {
 		for (const sessionId of rep.seeisonIds) {
-			await bot.sendPrivateMessage(sessionId, finalMsg.replace(/\\n/g, "\n"));
-		}
-		return;
-	}
-	if (platform === "onebot") {
-		const internal: OneBot.Internal = bot.internal;
-		for (const sessionId of rep.seeisonIds) {
-			await internal.sendGroupMsg(<number>(<unknown>sessionId), finalMsg);
+			await bot.sendPrivateMessage(sessionId, content);
 		}
 		return;
 	}
 	for (const sessionId of rep.seeisonIds) {
-		await bot.sendMessage(sessionId, finalMsg.replace(/\\n/g, "\n"));
+		await bot.sendMessage(sessionId, content);
 	}
 }
 
@@ -141,7 +135,7 @@ export function apply(ctx: Context, config: Config) {
 								// 过滤机器人平台，用户ID
 								continue;
 							}
-							await sendResponseMsg(bot, rep.platform, rep, body ? body : {}, logger, item.image);
+							await sendResponseMsg(bot, rep, body ? body : {}, logger, item.image);
 							return (c.status = 200);
 						}
 					}
@@ -172,7 +166,6 @@ export function apply(ctx: Context, config: Config) {
 							}
 							await sendResponseMsg(
 								bot,
-								rep.platform,
 								rep,
 								c.request.body ? c.request.body : {},
 								logger,
