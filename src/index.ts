@@ -115,16 +115,16 @@ export function apply(ctx: Context, config: Config) {
 
 		if (item.method === WebhookMethodType.GET)
 			ctx.server.get(
-				path,
-				(c, next) => {
-					logger.info("接收到get请求：" + path);
-					for (let httpheader in config[path].headers) {
-						// 检查头，如果不相等则返回400
-						if (c.header[httpheader.toLowerCase()] != config[path].headers[httpheader])
-							return (c.status = 400);
-					}
-					next();
-				},
+					path,
+					async (c, next) => {
+						logger.info("接收到get请求：" + path);
+						for (let httpheader in config[path].headers) {
+							// 检查头，如果不相等则返回400
+							if (c.header[httpheader.toLowerCase()] != config[path].headers[httpheader])
+								return (c.status = 400);
+						}
+						await next();
+					},
 				async (c) => {
 						let body = JSON.parse(JSON.stringify(c.request.query));
 	
@@ -155,16 +155,16 @@ export function apply(ctx: Context, config: Config) {
 
 		if (item.method === WebhookMethodType.POST)
 			ctx.server.post(
-				path,
-				(c, next) => {
-					logger.info("接收到post请求：" + path);
-					for (let httpheader in config[path].headers) {
-						// 检查头，如果不相等则返回400
-						if (c.header[httpheader.toLowerCase()] != config[path].headers[httpheader])
-							return (c.status = 400);
-					}
-					next();
-				},
+					path,
+					async (c, next) => {
+						logger.info("接收到post请求：" + path);
+						for (let httpheader in config[path].headers) {
+							// 检查头，如果不相等则返回400
+							if (c.header[httpheader.toLowerCase()] != config[path].headers[httpheader])
+								return (c.status = 400);
+						}
+						await next();
+					},
 				async (c) => {
 						for (let bot of ctx.bots) {
 							logger.info("post请求 bot.selfId：" + bot.selfId);
