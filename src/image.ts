@@ -174,6 +174,11 @@ type InlineSegment =
 	| { style: "bold-italic"; text: string }
 	| { style: "code"; text: string };
 
+/** Strip markdown backslash escapes: \. \- \| etc. → . - | */
+function stripBackslashEscapes(s: string): string {
+	return s.replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g, "$1");
+}
+
 function parseInlineSegments(text: string): InlineSegment[] {
 	const segments: InlineSegment[] = [];
 	const pattern = /`([^`]+)`|\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*/g;
@@ -181,18 +186,18 @@ function parseInlineSegments(text: string): InlineSegment[] {
 	let match: RegExpExecArray | null;
 	while ((match = pattern.exec(text)) !== null) {
 		if (match.index > lastIndex) {
-			segments.push({ style: "normal", text: text.slice(lastIndex, match.index) });
+			segments.push({ style: "normal", text: stripBackslashEscapes(text.slice(lastIndex, match.index)) });
 		}
 		if (match[1] !== undefined) segments.push({ style: "code", text: match[1] });
-		else if (match[2] !== undefined) segments.push({ style: "bold-italic", text: match[2] });
-		else if (match[3] !== undefined) segments.push({ style: "bold", text: match[3] });
-		else if (match[4] !== undefined) segments.push({ style: "italic", text: match[4] });
+		else if (match[2] !== undefined) segments.push({ style: "bold-italic", text: stripBackslashEscapes(match[2]) });
+		else if (match[3] !== undefined) segments.push({ style: "bold", text: stripBackslashEscapes(match[3]) });
+		else if (match[4] !== undefined) segments.push({ style: "italic", text: stripBackslashEscapes(match[4]) });
 		lastIndex = pattern.lastIndex;
 	}
 	if (lastIndex < text.length) {
-		segments.push({ style: "normal", text: text.slice(lastIndex) });
+		segments.push({ style: "normal", text: stripBackslashEscapes(text.slice(lastIndex)) });
 	}
-	return segments.length > 0 ? segments : [{ style: "normal", text }];
+	return segments.length > 0 ? segments : [{ style: "normal", text: stripBackslashEscapes(text) }];
 }
 
 // ── Canvas helpers ────────────────────────────────────────
