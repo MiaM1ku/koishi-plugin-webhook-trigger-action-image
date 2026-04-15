@@ -74,10 +74,40 @@ export interface varDict {
 	[key: string]: string;
 }
 
-async function sendResponseMsg(bot: Bot<any>, rep: responseType, dict: varDict, logger: any, image: boolean) {
+function escapeRegex(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function flattenObject(obj: any, prefix = "", result: varDict = {}, depth = 0): varDict {
+	if (depth > 10) return result;
+	for (const key in obj) {
+		if (!Object.prototype.hasOwnProperty.call(obj, key)) continue;
+		const fullKey = prefix ? `${prefix}.${key}` : key;
+		const value = obj[key];
+		if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+			flattenObject(value, fullKey, result, depth + 1);
+		} else if (Array.isArray(value)) {
+			result[fullKey] = JSON.stringify(value);
+			value.forEach((item, index) => {
+				const indexedKey = `${fullKey}.${index}`;
+				if (item !== null && typeof item === "object") {
+					flattenObject(item, indexedKey, result, depth + 1);
+				} else {
+					result[indexedKey] = String(item ?? "");
+				}
+			});
+		} else {
+			result[fullKey] = String(value ?? "");
+		}
+	}
+	return result;
+}
+
+async function sendResponseMsg(bot: Bot<any>, rep: responseType, rawDict: any, logger: any, image: boolean) {
+	const dict = flattenObject(rawDict);
 	let msg = rep.msg;
 	for (const key in dict) {
-		msg = msg.replace(new RegExp("\\{" + key + "\\}", "g"), dict[key]);
+		msg = msg.replace(new RegExp("\\{" + escapeRegex(key) + "\\}", "g"), dict[key]);
 	}
 
 	// Build the final message content
